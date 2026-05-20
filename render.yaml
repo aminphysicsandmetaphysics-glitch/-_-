@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: energy-audit-backend
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: energy-audit-db
+          property: connectionString
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: DEFAULT_STANDARD_EUI_MJ_M2_YEAR
+        value: "324"
+      - key: DEGREE_DAY_BASE_TEMP_C
+        value: "18"
+
+  - type: web
+    name: energy-audit-frontend
+    runtime: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://energy-audit-backend.onrender.com/api/v1
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: energy-audit-db
+    plan: free
+    databaseName: energy_audit
+    user: energy_audit_user
