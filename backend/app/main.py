@@ -25,6 +25,17 @@ app.add_middleware(
 app.include_router(router)
 
 
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "message": "Iran Residential Energy Audit API",
+        "docs": "/docs",
+        "health": "/health",
+        "api_base": "/api/v1",
+    }
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
