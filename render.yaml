@@ -25,7 +25,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_BASE
-        value: https://energy-audit-backend.onrender.com/api/v1
+        value: https://energy-audit-backend-lk7u.onrender.com/api/v1
     routes:
       - type: rewrite
         source: /*
