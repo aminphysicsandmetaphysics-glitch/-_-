@@ -21,6 +21,10 @@ export const api = {
     request(`/buildings/${buildingId}/bills`, { method: "POST", body: JSON.stringify(payload) }),
   saveWeather: (buildingId: number, payload: unknown[]) =>
     request(`/buildings/${buildingId}/weather`, { method: "POST", body: JSON.stringify(payload) }),
+  saveElectricEquipment: (buildingId: number, payload: unknown[]) =>
+    request(`/buildings/${buildingId}/equipment/electric`, { method: "POST", body: JSON.stringify(payload) }),
+  saveGasEquipment: (buildingId: number, payload: unknown[]) =>
+    request(`/buildings/${buildingId}/equipment/gas`, { method: "POST", body: JSON.stringify(payload) }),
   runAudit: (buildingId: number) =>
     request<AuditResult>(`/buildings/${buildingId}/audit/run`, { method: "POST" }),
   latestAudit: (buildingId: number) => request<AuditResult>(`/buildings/${buildingId}/audit/latest`),

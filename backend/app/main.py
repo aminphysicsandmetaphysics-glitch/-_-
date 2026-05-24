@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router
 from app.core.config import settings
+from app.db.migrations import ensure_runtime_schema
 from app.db.session import Base, engine
 from app.models import entities
 
@@ -44,3 +45,4 @@ def health_check():
 @app.on_event("startup")
 def create_database_schema():
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema(engine)

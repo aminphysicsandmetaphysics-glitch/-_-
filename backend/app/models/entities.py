@@ -22,6 +22,8 @@ class Building(Base):
     window_type: Mapped[str | None] = mapped_column(Text)
     wall_type: Mapped[str | None] = mapped_column(Text)
     roof_type: Mapped[str | None] = mapped_column(Text)
+    climate_zone: Mapped[str | None] = mapped_column(Text, default="moderate_dry")
+    ideal_e2: Mapped[float | None] = mapped_column(Float)
     has_insulation: Mapped[bool] = mapped_column(Boolean, default=False)
     has_thermostat: Mapped[bool] = mapped_column(Boolean, default=False)
     has_shading: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -30,6 +32,8 @@ class Building(Base):
 
     bills = relationship("EnergyBill", cascade="all, delete-orphan", back_populates="building")
     weather = relationship("WeatherData", cascade="all, delete-orphan", back_populates="building")
+    electric_equipment = relationship("ElectricEquipment", cascade="all, delete-orphan", back_populates="building")
+    gas_equipment = relationship("GasEquipment", cascade="all, delete-orphan", back_populates="building")
     audit_results = relationship("AuditResult", cascade="all, delete-orphan", back_populates="building")
     recommendations = relationship("Recommendation", cascade="all, delete-orphan", back_populates="building")
 
@@ -59,6 +63,10 @@ class WeatherData(Base):
     temp_min: Mapped[float | None] = mapped_column(Float)
     temp_max: Mapped[float | None] = mapped_column(Float)
     temp_avg: Mapped[float] = mapped_column(Float)
+    humidity: Mapped[float | None] = mapped_column(Float)
+    solar_radiation: Mapped[float | None] = mapped_column(Float)
+    rainfall: Mapped[float | None] = mapped_column(Float)
+    wind_speed: Mapped[float | None] = mapped_column(Float)
 
     building = relationship("Building", back_populates="weather")
 
@@ -74,6 +82,9 @@ class AuditResult(Base):
     hdd: Mapped[float] = mapped_column(Float, default=0)
     cdd: Mapped[float] = mapped_column(Float, default=0)
     energy_rating: Mapped[str] = mapped_column(String(1))
+    energy_index_ratio: Mapped[float | None] = mapped_column(Float)
+    ideal_e2: Mapped[float | None] = mapped_column(Float)
+    climate_zone: Mapped[str | None] = mapped_column(Text)
     standard_eui: Mapped[float] = mapped_column(Float)
     high_consumption_flag: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[str] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -92,3 +103,35 @@ class Recommendation(Base):
     status: Mapped[str] = mapped_column(Text, default="planned")
 
     building = relationship("Building", back_populates="recommendations")
+
+
+class ElectricEquipment(Base):
+    __tablename__ = "electric_equipment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(Text)
+    quantity: Mapped[float] = mapped_column(Float, default=1)
+    power_w: Mapped[float] = mapped_column(Float, default=0)
+    hours_per_day: Mapped[float] = mapped_column(Float, default=0)
+    days_per_year: Mapped[float] = mapped_column(Float, default=365)
+    usage_period: Mapped[str | None] = mapped_column(Text)
+
+    building = relationship("Building", back_populates="electric_equipment")
+
+
+class GasEquipment(Base):
+    __tablename__ = "gas_equipment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(Text)
+    quantity: Mapped[float] = mapped_column(Float, default=1)
+    gas_m3_per_hour: Mapped[float] = mapped_column(Float, default=0)
+    hours_per_day: Mapped[float] = mapped_column(Float, default=0)
+    days_per_year: Mapped[float] = mapped_column(Float, default=365)
+    usage_period: Mapped[str | None] = mapped_column(Text)
+
+    building = relationship("Building", back_populates="gas_equipment")

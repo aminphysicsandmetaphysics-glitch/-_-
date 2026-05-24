@@ -25,6 +25,10 @@ main {
 .hero {
   background: linear-gradient(135deg, #0f766e, #1d4ed8);
   color: white;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
 }
 
 .eyebrow {
@@ -201,4 +205,34 @@ td input {
 
 .selected {
   font-weight: 700;
+}
+
+.language-toggle {
+  min-width: 160px;
+  color: white;
+}
+
+.language-toggle select {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px;
+}
+
+.label-scale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.label-scale span {
+  border-radius: 12px;
+  padding: 10px;
+  background: #e2e8f0;
+  font-weight: 700;
+}
+
+.label-scale span.active {
+  background: #0f766e;
+  color: white;
 }

@@ -1,0 +1,58 @@
+export type Language = "fa" | "en";
+
+const dictionary = {
+  fa: {
+    dashboard: "داشبورد",
+    project: "پروژه",
+    bills: "قبض‌ها",
+    weather: "هواشناسی",
+    equipment: "تجهیزات",
+    analysis: "تحلیل",
+    reports: "گزارش‌ها",
+    selected: "پروژه انتخاب‌شده",
+    createProject: "تعریف پروژه ممیزی",
+    saveContinue: "ذخیره و ادامه",
+    runAnalysis: "اجرای تحلیل",
+    save: "ذخیره",
+    language: "زبان",
+    energyAudit: "سامانه ممیزی انرژی ساختمان‌های مسکونی ایران",
+    subtitle: "ممیزی سطح ۱ و ۲، اقلیم جاجرم، مبحث ۱۹ و گزارش حرفه‌ای",
+    selectFirst: "ابتدا یک پروژه بسازید یا انتخاب کنید.",
+    stepDashboard: "داشبورد",
+    stepProject: "پروژه",
+    stepBills: "قبض‌ها",
+    stepWeather: "هواشناسی",
+    stepEquipment: "تجهیزات",
+    stepAnalysis: "تحلیل",
+    stepReports: "گزارش‌ها",
+  },
+  en: {
+    dashboard: "Dashboard",
+    project: "Project",
+    bills: "Bills",
+    weather: "Weather",
+    equipment: "Equipment",
+    analysis: "Analysis",
+    reports: "Reports",
+    selected: "Selected",
+    createProject: "Create Audit Project",
+    saveContinue: "Save and continue",
+    runAnalysis: "Run analysis",
+    save: "Save",
+    language: "Language",
+    energyAudit: "Iran Residential Energy Audit Platform",
+    subtitle: "Level 1/2 audit, Jajarm climate, مبحث ۱۹, professional reports",
+    selectFirst: "Create or select a project first.",
+    stepDashboard: "Dashboard",
+    stepProject: "Project",
+    stepBills: "Bills",
+    stepWeather: "Weather",
+    stepEquipment: "Equipment",
+    stepAnalysis: "Analysis",
+    stepReports: "Reports",
+  },
+} as const;
+
+export function useT(language: Language) {
+  return (key: keyof typeof dictionary.en) => dictionary[language][key];
+}

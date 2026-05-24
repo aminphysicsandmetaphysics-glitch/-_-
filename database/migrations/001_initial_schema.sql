@@ -14,6 +14,8 @@ CREATE TABLE buildings (
     window_type TEXT,
     wall_type TEXT,
     roof_type TEXT,
+    climate_zone TEXT DEFAULT 'moderate_dry',
+    ideal_e2 FLOAT,
     has_insulation BOOLEAN DEFAULT FALSE,
     has_thermostat BOOLEAN DEFAULT FALSE,
     has_shading BOOLEAN DEFAULT FALSE,
@@ -41,6 +43,10 @@ CREATE TABLE weather_data (
     temp_min FLOAT,
     temp_max FLOAT,
     temp_avg FLOAT NOT NULL,
+    humidity FLOAT,
+    solar_radiation FLOAT,
+    rainfall FLOAT,
+    wind_speed FLOAT,
     UNIQUE (building_id, date)
 );
 
@@ -53,6 +59,9 @@ CREATE TABLE audit_results (
     hdd FLOAT DEFAULT 0,
     cdd FLOAT DEFAULT 0,
     energy_rating TEXT NOT NULL,
+    energy_index_ratio FLOAT,
+    ideal_e2 FLOAT,
+    climate_zone TEXT,
     standard_eui FLOAT NOT NULL,
     high_consumption_flag BOOLEAN NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
@@ -65,4 +74,28 @@ CREATE TABLE recommendations (
     recommendation TEXT NOT NULL,
     impact_level TEXT NOT NULL,
     status TEXT DEFAULT 'planned'
+);
+
+CREATE TABLE electric_equipment (
+    id SERIAL PRIMARY KEY,
+    building_id INT REFERENCES buildings(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    category TEXT,
+    quantity FLOAT DEFAULT 1,
+    power_w FLOAT DEFAULT 0,
+    hours_per_day FLOAT DEFAULT 0,
+    days_per_year FLOAT DEFAULT 365,
+    usage_period TEXT
+);
+
+CREATE TABLE gas_equipment (
+    id SERIAL PRIMARY KEY,
+    building_id INT REFERENCES buildings(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    category TEXT,
+    quantity FLOAT DEFAULT 1,
+    gas_m3_per_hour FLOAT DEFAULT 0,
+    hours_per_day FLOAT DEFAULT 0,
+    days_per_year FLOAT DEFAULT 365,
+    usage_period TEXT
 );

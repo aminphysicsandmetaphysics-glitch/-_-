@@ -6,18 +6,22 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.entities import AuditResult, Building, EnergyBill, Recommendation, WeatherData
+from app.models.entities import AuditResult, Building, ElectricEquipment, EnergyBill, GasEquipment, Recommendation, WeatherData
 from app.schemas.audit import (
     AuditResultRead,
     BuildingCreate,
     BuildingRead,
     EnergyBillCreate,
     EnergyBillRead,
+    ElectricEquipmentCreate,
+    ElectricEquipmentRead,
+    GasEquipmentCreate,
+    GasEquipmentRead,
     RecommendationRead,
     WeatherDataCreate,
     WeatherDataRead,
 )
-from app.services.analytics import RecommendationRuleInput, build_audit_result, generate_recommendations
+from app.services.analytics import RecommendationRuleInput, build_audit_result, calculate_electric_equipment, calculate_gas_equipment, generate_recommendations
 from app.services.reports import build_excel_report, build_pdf_report
 
 router = APIRouter(prefix="/api/v1")
@@ -108,6 +112,51 @@ def list_weather(building_id: int, db: Session = Depends(get_db)):
     return db.query(WeatherData).filter(WeatherData.building_id == building_id).order_by(WeatherData.date).all()
 
 
+@router.post("/buildings/{building_id}/equipment/electric", response_model=list[ElectricEquipmentRead])
+def upsert_electric_equipment(building_id: int, payload: list[ElectricEquipmentCreate], db: Session = Depends(get_db)):
+    if not db.get(Building, building_id):
+        raise HTTPException(status_code=404, detail="Building not found")
+    db.query(ElectricEquipment).filter(ElectricEquipment.building_id == building_id).delete()
+    saved = []
+    for item in payload:
+        row = ElectricEquipment(building_id=building_id, **item.model_dump())
+        db.add(row)
+        saved.append(row)
+    db.commit()
+    for row in saved:
+        db.refresh(row)
+    calculated = calculate_electric_equipment([{**ElectricEquipmentRead.model_validate(row).model_dump()} for row in saved])
+    return calculated
+
+
+@router.get("/buildings/{building_id}/equipment/electric", response_model=list[ElectricEquipmentRead])
+def list_electric_equipment(building_id: int, db: Session = Depends(get_db)):
+    rows = db.query(ElectricEquipment).filter(ElectricEquipment.building_id == building_id).all()
+    return calculate_electric_equipment([ElectricEquipmentRead.model_validate(row).model_dump() for row in rows])
+
+
+@router.post("/buildings/{building_id}/equipment/gas", response_model=list[GasEquipmentRead])
+def upsert_gas_equipment(building_id: int, payload: list[GasEquipmentCreate], db: Session = Depends(get_db)):
+    if not db.get(Building, building_id):
+        raise HTTPException(status_code=404, detail="Building not found")
+    db.query(GasEquipment).filter(GasEquipment.building_id == building_id).delete()
+    saved = []
+    for item in payload:
+        row = GasEquipment(building_id=building_id, **item.model_dump())
+        db.add(row)
+        saved.append(row)
+    db.commit()
+    for row in saved:
+        db.refresh(row)
+    return calculate_gas_equipment([GasEquipmentRead.model_validate(row).model_dump() for row in saved])
+
+
+@router.get("/buildings/{building_id}/equipment/gas", response_model=list[GasEquipmentRead])
+def list_gas_equipment(building_id: int, db: Session = Depends(get_db)):
+    rows = db.query(GasEquipment).filter(GasEquipment.building_id == building_id).all()
+    return calculate_gas_equipment([GasEquipmentRead.model_validate(row).model_dump() for row in rows])
+
+
 @router.post("/buildings/{building_id}/weather/import")
 async def import_weather_excel(building_id: int, file: UploadFile, db: Session = Depends(get_db)):
     import pandas as pd
@@ -127,6 +176,10 @@ async def import_weather_excel(building_id: int, file: UploadFile, db: Session =
             temp_min=float(record[normalized.get("temp_min", normalized["temp_avg"])]),
             temp_max=float(record[normalized.get("temp_max", normalized["temp_avg"])]),
             temp_avg=float(record[normalized["temp_avg"]]),
+            humidity=float(record[normalized["humidity"]]) if "humidity" in normalized else None,
+            solar_radiation=float(record[normalized["solar_radiation"]]) if "solar_radiation" in normalized else None,
+            rainfall=float(record[normalized["rainfall"]]) if "rainfall" in normalized else None,
+            wind_speed=float(record[normalized["wind_speed"]]) if "wind_speed" in normalized else None,
         ))
     return upsert_weather(building_id, rows, db)
 
@@ -154,15 +207,27 @@ def _collect_audit_inputs(building_id: int, db: Session):
             "temp_min": row.temp_min,
             "temp_max": row.temp_max,
             "temp_avg": row.temp_avg,
+            "humidity": row.humidity,
+            "solar_radiation": row.solar_radiation,
+            "rainfall": row.rainfall,
+            "wind_speed": row.wind_speed,
         }
         for row in db.query(WeatherData).filter(WeatherData.building_id == building_id).order_by(WeatherData.date).all()
     ]
-    return building, bills, weather_rows
+    electric_equipment = [
+        ElectricEquipmentRead.model_validate(row).model_dump()
+        for row in db.query(ElectricEquipment).filter(ElectricEquipment.building_id == building_id).all()
+    ]
+    gas_equipment = [
+        GasEquipmentRead.model_validate(row).model_dump()
+        for row in db.query(GasEquipment).filter(GasEquipment.building_id == building_id).all()
+    ]
+    return building, bills, weather_rows, electric_equipment, gas_equipment
 
 
 @router.post("/buildings/{building_id}/audit/run", response_model=AuditResultRead)
 def run_audit(building_id: int, db: Session = Depends(get_db)):
-    building, bills, weather_rows = _collect_audit_inputs(building_id, db)
+    building, bills, weather_rows, electric_equipment, gas_equipment = _collect_audit_inputs(building_id, db)
     result = build_audit_result(
         bills=bills,
         weather_rows=weather_rows,
@@ -170,8 +235,16 @@ def run_audit(building_id: int, db: Session = Depends(get_db)):
         occupants=building.occupants,
         standard_eui=settings.default_standard_eui_mj_m2_year,
         base_temp=settings.degree_day_base_temp_c,
+        climate_zone=building.climate_zone,
+        custom_e2=building.ideal_e2,
+        electric_equipment=electric_equipment,
+        gas_equipment=gas_equipment,
     )
-    audit = AuditResult(building_id=building_id, **{key: result[key] for key in result if key != "monthly"})
+    persistent_keys = {
+        "total_energy_mj", "eui", "energy_per_person", "hdd", "cdd", "energy_rating",
+        "energy_index_ratio", "ideal_e2", "climate_zone", "standard_eui", "high_consumption_flag",
+    }
+    audit = AuditResult(building_id=building_id, **{key: result[key] for key in persistent_keys})
     db.add(audit)
     db.query(Recommendation).filter(Recommendation.building_id == building_id).delete()
     recommendations = generate_recommendations(
@@ -194,13 +267,18 @@ def run_audit(building_id: int, db: Session = Depends(get_db)):
     result_recommendations = db.query(Recommendation).filter(Recommendation.building_id == building_id).all()
     response = AuditResultRead.model_validate(audit)
     response.monthly = result["monthly"]
+    response.weather_monthly = result["weather_monthly"]
+    response.electric_equipment = result["electric_equipment"]
+    response.gas_equipment = result["gas_equipment"]
+    response.energy_label_ranges = result["energy_label_ranges"]
+    response.anomalies = result["anomalies"]
     response.recommendations = [RecommendationRead.model_validate(item) for item in result_recommendations]
     return response
 
 
 @router.get("/buildings/{building_id}/audit/latest", response_model=AuditResultRead)
 def latest_audit(building_id: int, db: Session = Depends(get_db)):
-    building, bills, weather_rows = _collect_audit_inputs(building_id, db)
+    building, bills, weather_rows, electric_equipment, gas_equipment = _collect_audit_inputs(building_id, db)
     latest = (
         db.query(AuditResult)
         .filter(AuditResult.building_id == building_id)
@@ -209,9 +287,24 @@ def latest_audit(building_id: int, db: Session = Depends(get_db)):
     )
     if not latest:
         return run_audit(building_id, db)
-    result = build_audit_result(bills, weather_rows, building.area_m2, building.occupants, latest.standard_eui)
+    result = build_audit_result(
+        bills,
+        weather_rows,
+        building.area_m2,
+        building.occupants,
+        latest.standard_eui,
+        climate_zone=building.climate_zone,
+        custom_e2=building.ideal_e2,
+        electric_equipment=electric_equipment,
+        gas_equipment=gas_equipment,
+    )
     response = AuditResultRead.model_validate(latest)
     response.monthly = result["monthly"]
+    response.weather_monthly = result["weather_monthly"]
+    response.electric_equipment = result["electric_equipment"]
+    response.gas_equipment = result["gas_equipment"]
+    response.energy_label_ranges = result["energy_label_ranges"]
+    response.anomalies = result["anomalies"]
     response.recommendations = [
         RecommendationRead.model_validate(item)
         for item in db.query(Recommendation).filter(Recommendation.building_id == building_id).all()
@@ -235,7 +328,7 @@ def download_pdf_report(building_id: int, db: Session = Depends(get_db)):
 @router.get("/buildings/{building_id}/reports/excel")
 def download_excel_report(building_id: int, db: Session = Depends(get_db)):
     audit = latest_audit(building_id, db)
-    building, bills, weather_rows = _collect_audit_inputs(building_id, db)
+    building, bills, weather_rows, _, _ = _collect_audit_inputs(building_id, db)
     output = build_excel_report(building, bills, weather_rows, audit.model_dump())
     return StreamingResponse(
         output,

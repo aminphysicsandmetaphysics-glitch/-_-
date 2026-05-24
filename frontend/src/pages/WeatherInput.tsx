@@ -16,6 +16,10 @@ export function WeatherInput({ buildingId }: { buildingId: number }) {
         temp_min: seasonal - 7,
         temp_max: seasonal + 7,
         temp_avg: seasonal,
+        humidity: 35 + 15 * Math.sin((2 * Math.PI * (index + 40)) / 365),
+        solar_radiation: Math.max(1, 5.5 + 2.5 * Math.sin((2 * Math.PI * (index - 90)) / 365)),
+        rainfall: index % 27 === 0 ? 4 : 0,
+        wind_speed: 2.5,
       };
     });
     await api.saveWeather(buildingId, rows);
@@ -26,7 +30,7 @@ export function WeatherInput({ buildingId }: { buildingId: number }) {
     <section className="panel">
       <p className="eyebrow">Step 3 | Weather Data Input</p>
       <h2>Jajarm Climate Data | داده‌های هواشناسی جاجرم</h2>
-      <p>Required Excel/API format: Date, Min Temp, Max Temp, Mean Temp. At least 365 days is recommended.</p>
+      <p>Required format: Date, Min Temp, Max Temp, Mean Temp, Humidity, Solar Radiation, Rainfall, Wind Speed.</p>
       <label className="year-field">
         Sample days
         <input type="number" value={days} onChange={(event) => setDays(Number(event.target.value))} />
