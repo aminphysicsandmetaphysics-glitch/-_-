@@ -11,7 +11,17 @@ services:
           name: energy-audit-db
           property: connectionString
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://energy-audit-frontend.onrender.com,http://localhost:5173"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ELECTRICITY_TOMAN_PER_KWH
+        value: "5000"
+      - key: GAS_TOMAN_PER_M3
+        value: "3000"
+      - key: GRID_EMISSION_FACTOR_KG_CO2_PER_KWH
+        value: "0.5"
+      - key: GAS_EMISSION_FACTOR_KG_CO2_PER_M3
+        value: "2.0"
       - key: DEFAULT_STANDARD_EUI_MJ_M2_YEAR
         value: "324"
       - key: DEGREE_DAY_BASE_TEMP_C
